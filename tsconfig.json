@@ -6,6 +6,10 @@
     "lib": ["ES2022"],
     "types": ["node"],
     "strict": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "isolatedModules": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
@@ -13,8 +17,7 @@
     "sourceMap": true,
     "outDir": "dist",
     "rootDir": ".",
-    "forceConsistentCasingInFileNames": true,
-    "noUncheckedIndexedAccess": true
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src", "tests"],
   "exclude": ["node_modules", "dist"]
