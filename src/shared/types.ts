@@ -38,6 +38,10 @@ export type Extraction = {
 export type ShareClass = {
   name: string;                        // matches round name; "Common" for founders
   shares: number;
+  pricePerShare: number;               // round's PPS; 0 for Common. needed so the
+                                       // waterfall can compute liq-pref payouts
+                                       // (invested = shares × PPS) and per-holder
+                                       // multiple without re-reading the Extraction.
   liqPref: number;                     // 0 for Common
   participation: Participation;        // "none" for Common
   participationCap: number | null;
