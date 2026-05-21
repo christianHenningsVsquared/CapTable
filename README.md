@@ -4,8 +4,10 @@ Lokales Desktop-Tool für VC-Cap-Table-Analyse: liest Cap-Table-Daten aus Legals
 baut daraus eine nachvollziehbare Cap Table, modelliert Share-Klassen & Liquidations-Waterfalls und
 unterstützt Exit-, Valuation- und Follow-on-Entscheidungen über das gesamte Fonds-Portfolio.
 
-> Status: **Spezifikations-/Konzeptphase**. Es wurde noch kein Code geschrieben. Diese Doku ist die
-> Grundlage für den Build. Offene Punkte siehe [docs/11-open-questions.md](docs/11-open-questions.md).
+> Status: **MVP build in progress.** The current, narrowed scope and the
+> 3-stream work split live in **[docs/MVP.md](docs/MVP.md)** — start there.
+> The phase docs below (`01-…` through `11-…`) describe the broader v2
+> vision and are not the current build target.
 
 ## Kernidee (3 Schritte)
 
@@ -17,6 +19,18 @@ unterstützt Exit-, Valuation- und Follow-on-Entscheidungen über das gesamte Fo
    Return-Kurven zeigen und **Follow-on-Entscheidungen** interaktiv durchspielen.
 
 ## Doku-Index
+
+### Current MVP build (read these first)
+
+| Datei | Inhalt |
+|---|---|
+| [docs/MVP.md](docs/MVP.md) | **What we're actually building.** Scope, pipeline, streams, DoD. |
+| [docs/stream-a-ingestion.md](docs/stream-a-ingestion.md) | Stream A spec — LLM extraction + SQLite. |
+| [docs/stream-b-engine.md](docs/stream-b-engine.md) | Stream B spec — Cap Table + Waterfall engine. |
+| [docs/stream-c-ui.md](docs/stream-c-ui.md) | Stream C spec — Electron + React single screen. |
+| [src/shared/types.ts](src/shared/types.ts) | Shared types — the contract between all three streams. |
+
+### v2 background (broader vision, not the current target)
 
 | Datei | Inhalt |
 |---|---|
@@ -35,5 +49,6 @@ unterstützt Exit-, Valuation- und Follow-on-Entscheidungen über das gesamte Fo
 
 ## Nächster Schritt
 
-Offene Fragen in [docs/11-open-questions.md](docs/11-open-questions.md) durchgehen → danach Phase 0
-(Datenmodell + leere App-Hülle) starten, siehe [docs/10-roadmap-todos.md](docs/10-roadmap-todos.md).
+Read [docs/MVP.md](docs/MVP.md), agree on `src/shared/types.ts` and the
+golden fixture, then each colleague picks up one stream brief and starts
+building.
