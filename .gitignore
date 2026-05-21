@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build output
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment & secrets (API keys, OAuth tokens)
+.env
+.env.*
+!.env.example
+*.pem
+secrets/
+
+# Local cap-table data & databases (never commit real deal data)
+*.sqlite
+*.sqlite3
+*.db
+data/local/
+ingestion-cache/
+
+# Source documents (legals, excel, pdf) — sensitive, keep local
+/source-documents/
+/datarooms/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Test coverage
+coverage/
+.nyc_output/
