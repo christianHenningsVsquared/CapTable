@@ -44,3 +44,7 @@ Thumbs.db
 # Test coverage
 coverage/
 .nyc_output/
+
+# Local scratch / dev screenshots
+.tmp/
+dist-web/
