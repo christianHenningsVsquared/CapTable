@@ -20,6 +20,7 @@ import {
   loadConfig,
   saveConfig,
   maskKey,
+  PROVIDERS,
   type Provider,
   type RuntimeConfig,
 } from "../config/index.js";
@@ -52,25 +53,33 @@ export function createApp(store: Store): express.Express {
         provider: cfg.provider,
         maskedKey: maskKey(cfg.apiKey),
         model: cfg.model ?? null,
+        baseURL: cfg.baseURL ?? null,
       });
     } catch {
-      res.json({ hasKey: false, provider: null, maskedKey: "", model: null });
+      res.json({ hasKey: false, provider: null, maskedKey: "", model: null, baseURL: null });
     }
   });
 
   app.post("/api/config", (req, res) => {
-    const { provider, apiKey, model } = req.body as {
+    const { provider, apiKey, model, baseURL } = req.body as {
       provider?: Provider;
       apiKey?: string;
       model?: string;
+      baseURL?: string;
     };
-    if (provider !== "anthropic" && provider !== "openai") {
-      return res.status(400).json({ error: "provider must be 'anthropic' or 'openai'" });
+    if (!provider || !PROVIDERS.includes(provider)) {
+      return res.status(400).json({ error: `provider must be one of: ${PROVIDERS.join(", ")}` });
     }
     if (!apiKey || typeof apiKey !== "string" || apiKey.trim().length < 8) {
       return res.status(400).json({ error: "apiKey is required" });
     }
-    saveConfig({ provider, apiKey: apiKey.trim(), ...(model ? { model } : {}) });
+    const trimmedBaseURL = typeof baseURL === "string" ? baseURL.trim() : "";
+    saveConfig({
+      provider,
+      apiKey: apiKey.trim(),
+      ...(model ? { model } : {}),
+      ...(trimmedBaseURL ? { baseURL: trimmedBaseURL } : {}),
+    });
     res.json({ ok: true, provider, maskedKey: maskKey(apiKey.trim()) });
   });
 

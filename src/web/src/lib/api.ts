@@ -44,11 +44,14 @@ export interface CompanyDetail {
   captable: CapTable | EngineError | null;
 }
 
+export type Provider = "anthropic" | "openai" | "langdock";
+
 export interface ConfigStatus {
   hasKey: boolean;
-  provider: "anthropic" | "openai" | null;
+  provider: Provider | null;
   maskedKey: string;
   model: string | null;
+  baseURL: string | null;
 }
 
 const BASE = "/api";
@@ -68,10 +71,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const api = {
   // Config
   getConfig: () => request<ConfigStatus>("/config"),
-  saveConfig: (provider: "anthropic" | "openai", apiKey: string, model?: string) =>
+  saveConfig: (
+    provider: Provider,
+    apiKey: string,
+    opts: { model?: string; baseURL?: string } = {},
+  ) =>
     request<{ ok: true; provider: string; maskedKey: string }>("/config", {
       method: "POST",
-      body: JSON.stringify({ provider, apiKey, ...(model ? { model } : {}) }),
+      body: JSON.stringify({
+        provider,
+        apiKey,
+        ...(opts.model ? { model: opts.model } : {}),
+        ...(opts.baseURL ? { baseURL: opts.baseURL } : {}),
+      }),
     }),
   clearConfig: () => request<{ ok: true }>("/config", { method: "DELETE" }),
 

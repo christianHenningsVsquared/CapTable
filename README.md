@@ -12,7 +12,7 @@ unterstützt Exit-, Valuation- und Follow-on-Entscheidungen über das gesamte Fo
 ## Quickstart (headless — Streams A + B only)
 
 The UI (Stream C) is still pending, but the CLI is already viable. Provide
-either an Anthropic *or* an OpenAI key.
+an Anthropic, OpenAI, *or* Langdock key.
 
 ```bash
 npm install
@@ -22,6 +22,8 @@ npm run build          # compiles dist/cli/index.js (the bin entry)
 npx captable config set --provider anthropic --api-key sk-ant-…
 # or
 npx captable config set --provider openai    --api-key sk-…
+# or (Langdock — OpenAI-compatible gateway, defaults to EU region)
+npx captable config set --provider langdock  --api-key ld-…
 
 # Run the full pipeline on the demo contract
 npx captable run demo/helios-robotics.txt
@@ -31,7 +33,32 @@ You can also use env vars instead of `config set`:
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-…        # provider inferred from which key is set
+# or
+export LANGDOCK_API_KEY=ld-…             # inferred as `langdock`
 npx captable run demo/helios-robotics.txt
+```
+
+### Langdock-specific options
+
+Langdock is an OpenAI-compatible gateway that can route to GPT, Claude,
+Gemini, and Mistral models. The default base URL is the EU region
+(`https://api.langdock.com/openai/eu/v1`). Override it for the US region or
+a dedicated deployment:
+
+```bash
+# Persist it (config file)
+npx captable config set --provider langdock --api-key ld-… \
+  --base-url https://api.langdock.com/openai/us/v1 \
+  --model gpt-4o
+
+# Or per-command
+npx captable run demo/helios-robotics.txt \
+  --provider langdock --api-key ld-… \
+  --base-url https://your-deployment.example.com/api/public/openai/eu/v1
+
+# Or via env
+export LANGDOCK_API_KEY=ld-…
+export LANGDOCK_BASE_URL=https://api.langdock.com/openai/us/v1
 ```
 
 See `npx captable --help` for the full subcommand list (`ingest`, `captable`,

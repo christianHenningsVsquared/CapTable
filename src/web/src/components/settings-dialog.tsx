@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ShieldCheck, KeyRound, Trash2, Lock } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, type Provider } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,19 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-type Provider = "anthropic" | "openai";
+const PROVIDER_LABELS: Record<Provider, string> = {
+  anthropic: "Anthropic",
+  openai: "OpenAI",
+  langdock: "Langdock",
+};
+
+const PROVIDER_PLACEHOLDERS: Record<Provider, string> = {
+  anthropic: "sk-ant-…",
+  openai: "sk-…",
+  langdock: "sk-…",
+};
+
+const PROVIDERS: readonly Provider[] = ["anthropic", "openai", "langdock"] as const;
 
 export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const queryClient = useQueryClient();
@@ -26,13 +38,18 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
 
   const [provider, setProvider] = useState<Provider>("anthropic");
   const [apiKey, setApiKey] = useState("");
+  const [baseURL, setBaseURL] = useState("");
 
   useEffect(() => {
     if (status?.provider) setProvider(status.provider);
-  }, [status?.provider]);
+    if (status?.baseURL) setBaseURL(status.baseURL);
+  }, [status?.provider, status?.baseURL]);
 
   const save = useMutation({
-    mutationFn: () => api.saveConfig(provider, apiKey),
+    mutationFn: () =>
+      api.saveConfig(provider, apiKey, {
+        ...(provider === "langdock" && baseURL.trim() ? { baseURL: baseURL.trim() } : {}),
+      }),
     onSuccess: () => {
       setApiKey("");
       queryClient.invalidateQueries({ queryKey: ["config"] });
@@ -87,39 +104,50 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
         <div className="space-y-2">
           <Label htmlFor="provider">Provider</Label>
           <div className="flex gap-2">
-            <Button
-              variant={provider === "anthropic" ? "default" : "outline"}
-              size="sm"
-              type="button"
-              onClick={() => setProvider("anthropic")}
-            >
-              Anthropic
-            </Button>
-            <Button
-              variant={provider === "openai" ? "default" : "outline"}
-              size="sm"
-              type="button"
-              onClick={() => setProvider("openai")}
-            >
-              OpenAI
-            </Button>
+            {PROVIDERS.map((p) => (
+              <Button
+                key={p}
+                variant={provider === p ? "default" : "outline"}
+                size="sm"
+                type="button"
+                onClick={() => setProvider(p)}
+              >
+                {PROVIDER_LABELS[p]}
+              </Button>
+            ))}
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="apiKey">
-            {provider === "anthropic" ? "Anthropic" : "OpenAI"} key
-          </Label>
+          <Label htmlFor="apiKey">{PROVIDER_LABELS[provider]} key</Label>
           <Input
             id="apiKey"
             type="password"
             autoComplete="off"
-            placeholder={provider === "anthropic" ? "sk-ant-…" : "sk-…"}
+            placeholder={PROVIDER_PLACEHOLDERS[provider]}
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             className="font-mono"
           />
         </div>
+
+        {provider === "langdock" && (
+          <div className="space-y-2">
+            <Label htmlFor="baseURL">Base URL (optional)</Label>
+            <Input
+              id="baseURL"
+              type="text"
+              autoComplete="off"
+              placeholder="https://api.langdock.com/openai/eu/v1"
+              value={baseURL}
+              onChange={(e) => setBaseURL(e.target.value)}
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave blank for the EU default. Override for US or dedicated deployments.
+            </p>
+          </div>
+        )}
 
         {save.isError && (
           <p className="text-sm text-rose-300">{(save.error as Error).message}</p>

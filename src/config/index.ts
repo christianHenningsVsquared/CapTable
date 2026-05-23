@@ -2,7 +2,7 @@
 //
 // Resolution order (first hit wins, key-by-key):
 //   1. Explicit overrides passed to `loadConfig`
-//   2. Environment variables (CAPTABLE_*, ANTHROPIC_API_KEY, OPENAI_API_KEY)
+//   2. Environment variables (CAPTABLE_*, ANTHROPIC_API_KEY, OPENAI_API_KEY, LANGDOCK_API_KEY)
 //   3. ~/.captable/config.json
 //
 // The config file is the user-pasted state; CLI flags should be passed
@@ -12,13 +12,20 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from "n
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
-export type Provider = "anthropic" | "openai";
+export type Provider = "anthropic" | "openai" | "langdock";
+
+export const PROVIDERS: readonly Provider[] = ["anthropic", "openai", "langdock"] as const;
 
 export interface RuntimeConfig {
   provider: Provider;
   apiKey: string;
   /** Optional model override; undefined → provider default. */
   model?: string;
+  /**
+   * Optional base URL override. Used by `langdock` (region/dedicated
+   * deployment) and ignored by the native Anthropic/OpenAI providers.
+   */
+  baseURL?: string;
 }
 
 export type PartialConfig = Partial<RuntimeConfig>;
@@ -64,25 +71,35 @@ function readConfigFile(path: string): PartialConfig {
 function fromEnv(env: NodeJS.ProcessEnv): PartialConfig {
   const provider = env.CAPTABLE_PROVIDER as Provider | undefined;
   // Pick a key matching the chosen provider; if no provider set, take whichever
-  // exists (Anthropic wins when both are present, since that was Stream A's
-  // historical default).
+  // exists (Anthropic wins ties since that was Stream A's historical default,
+  // then OpenAI, then Langdock).
   const anthropicKey = env.ANTHROPIC_API_KEY?.trim() || undefined;
   const openaiKey = env.OPENAI_API_KEY?.trim() || undefined;
+  const langdockKey = env.LANGDOCK_API_KEY?.trim() || undefined;
   let apiKey: string | undefined;
   let inferredProvider: Provider | undefined = provider;
   if (provider === "anthropic") apiKey = anthropicKey;
   else if (provider === "openai") apiKey = openaiKey;
+  else if (provider === "langdock") apiKey = langdockKey;
   else if (anthropicKey) {
     apiKey = anthropicKey;
     inferredProvider = "anthropic";
   } else if (openaiKey) {
     apiKey = openaiKey;
     inferredProvider = "openai";
+  } else if (langdockKey) {
+    apiKey = langdockKey;
+    inferredProvider = "langdock";
   }
+  const baseURL =
+    env.CAPTABLE_BASE_URL?.trim() ||
+    (inferredProvider === "langdock" ? env.LANGDOCK_BASE_URL?.trim() : undefined) ||
+    undefined;
   return {
     ...(inferredProvider ? { provider: inferredProvider } : {}),
     ...(apiKey ? { apiKey } : {}),
     ...(env.CAPTABLE_MODEL ? { model: env.CAPTABLE_MODEL } : {}),
+    ...(baseURL ? { baseURL } : {}),
   };
 }
 
@@ -102,7 +119,7 @@ export function loadConfig(opts: LoadConfigOptions = {}): RuntimeConfig {
   };
   if (!merged.provider) {
     throw new ConfigError(
-      "No provider configured. Run `captable config set --provider anthropic|openai --api-key <key>` " +
+      "No provider configured. Run `captable config set --provider anthropic|openai|langdock --api-key <key>` " +
         "or set CAPTABLE_PROVIDER and the matching *_API_KEY env var.",
     );
   }
@@ -116,6 +133,7 @@ export function loadConfig(opts: LoadConfigOptions = {}): RuntimeConfig {
     provider: merged.provider,
     apiKey: merged.apiKey,
     ...(merged.model ? { model: merged.model } : {}),
+    ...(merged.baseURL ? { baseURL: merged.baseURL } : {}),
   };
 }
 
@@ -131,6 +149,7 @@ export function saveConfig(config: PartialConfig, path: string = defaultConfigPa
   if (config.provider) clean.provider = config.provider;
   if (config.apiKey) clean.apiKey = config.apiKey;
   if (config.model) clean.model = config.model;
+  if (config.baseURL) clean.baseURL = config.baseURL;
   writeFileSync(path, JSON.stringify(clean, null, 2) + "\n", { mode: 0o600 });
   // writeFileSync's mode is only applied on create; chmod to be safe on overwrite.
   try {
