@@ -1,3 +1,5 @@
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import Database from "better-sqlite3";
 
 export type DB = Database.Database;
@@ -32,9 +34,13 @@ CREATE TABLE IF NOT EXISTS waterfall_runs (
 
 /**
  * Open (and migrate) a SQLite database. Defaults to an in-memory DB, which is
- * what the tests use; pass a file path for the real app.
+ * what the tests use; pass a file path for the real app. Creates the parent
+ * directory if it doesn't exist so callers can point at `~/.captable/foo.db`.
  */
 export function openDb(path = ":memory:"): DB {
+  if (path !== ":memory:") {
+    mkdirSync(dirname(path), { recursive: true });
+  }
   const db = new Database(path);
   db.pragma("foreign_keys = ON");
   db.exec(SCHEMA);

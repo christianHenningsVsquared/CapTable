@@ -99,6 +99,16 @@ editable rows; the user types the value; we patch the JSON in
 
 Ship that. Everything else is v2.
 
+## Headless mode (Streams A + B without the UI)
+
+Stream C may not land at the same time as A + B. To make the build usable
+without a UI, the CLI in `src/cli/` ships the full pipeline:
+`captable run <contract.txt>` → ingest + cap table + waterfall, printed to
+stdout (or JSON with `--json`). Provider/key are user-supplied via
+`captable config set` or env vars; today Anthropic and OpenAI are wired
+up through the Vercel AI SDK. See `docs/viability-checklist.md` and the
+README quickstart.
+
 ## Day-0 Joint Tasks (before parallel work)
 
 1. Lock `src/shared/types.ts` — all three review and sign off.

@@ -2,12 +2,18 @@ import { describe, it, expect } from "vitest";
 import { extractContract } from "../../src/ingestion/extractContract.js";
 import { golden } from "../fixtures/golden.js";
 
-// Real Claude API call. Skipped unless ANTHROPIC_API_KEY is set so CI / offline
-// runs stay green. Run it with a key to validate the prompt end-to-end:
-//   ANTHROPIC_API_KEY=sk-... npx vitest run tests/ingestion/live.test.ts
-const hasKey = Boolean(process.env.ANTHROPIC_API_KEY);
+// Real provider API call. Skipped unless ANTHROPIC_API_KEY *or* OPENAI_API_KEY
+// is set, so CI / offline runs stay green. Run it with a key to validate the
+// prompt end-to-end:
+//
+//   ANTHROPIC_API_KEY=sk-...    npx vitest run tests/ingestion/live.test.ts
+//   OPENAI_API_KEY=sk-...       npx vitest run tests/ingestion/live.test.ts
+//
+// Set CAPTABLE_PROVIDER to force the choice when both keys exist.
+const hasKey =
+  Boolean(process.env.ANTHROPIC_API_KEY) || Boolean(process.env.OPENAI_API_KEY);
 
-describe.skipIf(!hasKey)("extractContract — live Claude API", () => {
+describe.skipIf(!hasKey)("extractContract — live API", () => {
   it(
     "extracts the golden contract to match the expected structure and key numbers",
     async () => {

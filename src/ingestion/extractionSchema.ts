@@ -1,17 +1,17 @@
 // The contract between the LLM call and the rest of Stream A.
 //
-// This file is intentionally free of any SDK import so it can be unit-tested in
-// isolation: it holds the prompt, the JSON Schema the model must fill, and the
-// normalizer that turns the model's (possibly messy) tool output into a strict
-// `Extraction` from src/shared/types.ts.
+// Two representations of the same shape live here:
+//   1. `ExtractionInputSchema` — a Zod schema used as the structured-output
+//      schema for the AI SDK (`generateObject({ schema })`). This is the
+//      source of truth the model is asked to fill.
+//   2. `parseExtraction` — a defensive normalizer that coerces arbitrary
+//      input (e.g. a model that ignored the schema, or messy values inside
+//      a valid shape) into a strict `Extraction`. Used as a last-mile
+//      guard after the structured-output call so we never propagate NaN
+//      or unexpected enum values into the engine.
 
+import { z } from "zod";
 import type { Extraction, ExtractedRound, ExtractedInvestor, Participation } from "../shared/types.js";
-
-export const EXTRACTION_TOOL_NAME = "record_extraction";
-
-export const EXTRACTION_TOOL_DESCRIPTION =
-  "Record the cap-table data extracted verbatim from the contract. Every field must come " +
-  "directly from the contract text; use null for anything that is not literally stated.";
 
 export const EXTRACTION_SYSTEM_PROMPT = `You are a precise contract data extractor for venture-capital cap tables.
 
@@ -24,79 +24,52 @@ Extract ONLY information that is LITERALLY written in the contract text the user
 - "participation" must be exactly one of "none", "full", or "capped" when the liquidation-preference type is stated; otherwise null. "participationCap" (a multiple, e.g. 2.0) is set only when participation is "capped".
 - "seniority" is a number where a HIGHER value is paid out first; set it only when the contract states the ranking explicitly; otherwise null.
 - Each investor's "round" must exactly match one of the round names you record.
-- Founders' ordinary/common shares are NOT investors. Only record investors with an associated investment amount or named participation in a round.
+- Founders' ordinary/common shares are NOT investors. Only record investors with an associated investment amount or named participation in a round.`;
 
-Record the result by calling the ${EXTRACTION_TOOL_NAME} tool exactly once. Do not write any other text.`;
+// ─── Zod schema (AI SDK structured-output target) ───────────────────────────
 
-// JSON Schema for the tool's input. Standard JSON Schema (no strict-mode
-// restrictions) — the normalizer below is the real guarantee of shape.
-export const EXTRACTION_JSON_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    company: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        name: { type: "string", description: "Company name exactly as written in the contract." },
-      },
-      required: ["name"],
-    },
-    rounds: {
-      type: "array",
-      description: "One entry per priced financing round literally described in the contract.",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          name: { type: "string", description: 'Round name, e.g. "Seed", "Series A".' },
-          date: { type: ["string", "null"], description: "Closing date (YYYY-MM-DD) or null." },
-          preMoney: { type: ["number", "null"], description: "Pre-money valuation or null." },
-          investment: { type: ["number", "null"], description: "Total amount invested in the round or null." },
-          pricePerShare: { type: ["number", "null"], description: "Issue price per share or null." },
-          liqPref: { type: ["number", "null"], description: "Liquidation preference multiple (e.g. 1.0) or null." },
-          participation: {
-            anyOf: [{ type: "string", enum: ["none", "full", "capped"] }, { type: "null" }],
-            description: "Participation type or null.",
-          },
-          participationCap: { type: ["number", "null"], description: "Participation cap multiple, only when capped." },
-          seniority: { type: ["number", "null"], description: "Seniority rank; higher is paid first." },
-        },
-        required: [
-          "name",
-          "date",
-          "preMoney",
-          "investment",
-          "pricePerShare",
-          "liqPref",
-          "participation",
-          "participationCap",
-          "seniority",
-        ],
-      },
-    },
-    investors: {
-      type: "array",
-      description: "One entry per investor in a round, as literally named in the contract.",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          name: { type: "string", description: "Investor name exactly as written." },
-          round: { type: "string", description: "Round name; must match a rounds[].name." },
-          amount: { type: ["number", "null"], description: "Amount this investor put into the round, or null." },
-        },
-        required: ["name", "round", "amount"],
-      },
-    },
-  },
-  required: ["company", "rounds", "investors"],
-} as const;
+export const ExtractionInputSchema = z.object({
+  company: z.object({
+    name: z.string().describe("Company name exactly as written in the contract."),
+  }),
+  rounds: z
+    .array(
+      z.object({
+        name: z.string().describe('Round name, e.g. "Seed", "Series A".'),
+        date: z.string().nullable().describe("Closing date (YYYY-MM-DD) or null."),
+        preMoney: z.number().nullable().describe("Pre-money valuation or null."),
+        investment: z.number().nullable().describe("Total amount invested in the round or null."),
+        pricePerShare: z.number().nullable().describe("Issue price per share or null."),
+        liqPref: z.number().nullable().describe("Liquidation preference multiple (e.g. 1.0) or null."),
+        participation: z
+          .enum(["none", "full", "capped"])
+          .nullable()
+          .describe("Participation type or null."),
+        participationCap: z
+          .number()
+          .nullable()
+          .describe("Participation cap multiple, only when capped."),
+        seniority: z.number().nullable().describe("Seniority rank; higher is paid first."),
+      }),
+    )
+    .describe("One entry per priced financing round literally described in the contract."),
+  investors: z
+    .array(
+      z.object({
+        name: z.string().describe("Investor name exactly as written."),
+        round: z.string().describe("Round name; must match a rounds[].name."),
+        amount: z.number().nullable().describe("Amount this investor put into the round, or null."),
+      }),
+    )
+    .describe("One entry per investor in a round, as literally named in the contract."),
+});
+
+export type ExtractionInput = z.infer<typeof ExtractionInputSchema>;
 
 // ─── Normalization ──────────────────────────────────────────────────────────
-// Defensive coercion: the model is instructed to emit clean values, but we never
-// trust that. Anything we can't confidently coerce becomes null (per the
-// "missing data" contract), and junk entries are dropped.
+// Defensive coercion: even with structured output, we never trust raw values.
+// Anything we can't confidently coerce becomes null (per the "missing data"
+// contract), and junk entries are dropped.
 
 function asString(v: unknown): string | null {
   return typeof v === "string" && v.trim() !== "" ? v.trim() : null;
@@ -105,7 +78,6 @@ function asString(v: unknown): string | null {
 function asNumberOrNull(v: unknown): number | null {
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
   if (typeof v === "string") {
-    // Strip currency symbols, thousands separators, and surrounding text.
     const cleaned = v.replace(/[^0-9.\-]/g, "");
     if (cleaned === "" || cleaned === "-" || cleaned === "." || cleaned === "-.") return null;
     const n = Number(cleaned);
