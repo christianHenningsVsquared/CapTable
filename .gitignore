@@ -45,5 +45,6 @@ Thumbs.db
 coverage/
 .nyc_output/
 
-# Local scratch / ephemeral working dirs
+# Local scratch / ephemeral working dirs / dev screenshots
 .tmp/
+dist-web/
