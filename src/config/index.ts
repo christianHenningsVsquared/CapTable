@@ -71,8 +71,8 @@ function readConfigFile(path: string): PartialConfig {
 function fromEnv(env: NodeJS.ProcessEnv): PartialConfig {
   const provider = env.CAPTABLE_PROVIDER as Provider | undefined;
   // Pick a key matching the chosen provider; if no provider set, take whichever
-  // exists (Anthropic wins ties since that was Stream A's historical default,
-  // then OpenAI, then Langdock).
+  // exists (Anthropic wins ties — historical default — then OpenAI, then
+  // Langdock).
   const anthropicKey = env.ANTHROPIC_API_KEY?.trim() || undefined;
   const openaiKey = env.OPENAI_API_KEY?.trim() || undefined;
   const langdockKey = env.LANGDOCK_API_KEY?.trim() || undefined;

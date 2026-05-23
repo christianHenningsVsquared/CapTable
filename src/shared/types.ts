@@ -1,13 +1,11 @@
-// Shared contract between Stream A (Ingestion), Stream B (Engine), and Stream C (UI).
+// Shared contract between ingestion, engine, and UI.
 //
 // Rule: the LLM produces ONLY values literally written in the contract.
 // The engine computes everything derived (shares, ownership %, waterfall).
-//
-// Do not invent local types in any stream — extend this file with a PR all three review.
 
 export type Participation = "none" | "full" | "capped";
 
-// ─── Stream A output ──────────────────────────────────────────────────────────
+// ─── Ingestion output (what the LLM produces) ────────────────────────────────
 
 export type ExtractedRound = {
   name: string;                        // "Seed", "Series A", ...
@@ -33,7 +31,7 @@ export type Extraction = {
   investors: ExtractedInvestor[];
 };
 
-// ─── Stream B output ──────────────────────────────────────────────────────────
+// ─── Engine output (cap table + waterfall) ───────────────────────────────────
 
 export type ShareClass = {
   name: string;                        // matches round name; "Common" for founders

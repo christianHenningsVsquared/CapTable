@@ -1,115 +1,138 @@
-# CapTable Tool
+# CapTable
 
-Lokales Desktop-Tool für VC-Cap-Table-Analyse: liest Cap-Table-Daten aus Legals, Excel und PDFs aus,
-baut daraus eine nachvollziehbare Cap Table, modelliert Share-Klassen & Liquidations-Waterfalls und
-unterstützt Exit-, Valuation- und Follow-on-Entscheidungen über das gesamte Fonds-Portfolio.
+Local VC cap-table tool. Extracts cap-table data from contract documents using an LLM,
+builds a deterministic cap table, and models liquidation waterfalls at any exit value.
 
-> Status: **MVP build in progress.** The current, narrowed scope and the
-> 3-stream work split live in **[docs/MVP.md](docs/MVP.md)** — start there.
-> The phase docs below (`01-…` through `11-…`) describe the broader v2
-> vision and are not the current build target.
+Two ways to use it:
 
-## Quickstart (headless — Streams A + B only)
+- **Web app** — `npm run dev` brings up a local HTTP API + React UI for uploading
+  documents, browsing companies, editing extractions, and dragging the exit-value
+  slider on the waterfall.
+- **Headless CLI** — `npx captable run <contract.txt>` runs the full pipeline
+  (extract → cap table → waterfall) and prints the result. JSON output via `--json`.
 
-The UI (Stream C) is still pending, but the CLI is already viable. Provide
-an Anthropic, OpenAI, *or* Langdock key.
+The cap-table + waterfall math is deterministic TypeScript (in `src/engine/`); the
+LLM only extracts literal values from the document.
+
+## Prerequisites
+
+- Node 20+ (the project uses native ESM and `better-sqlite3`).
+- An API key for **one** of: Anthropic, OpenAI, or Langdock (OpenAI-compatible).
+
+## Quickstart — web app (`npm run dev`)
 
 ```bash
 npm install
-npm run build          # compiles dist/cli/index.js (the bin entry)
+npm run dev
+```
 
-# Save your provider + key once (writes ~/.captable/config.json, mode 0600)
+That runs two processes concurrently:
+
+- **Server** on `http://127.0.0.1:3001` (`src/server/index.ts` — Express, bound to
+  localhost only).
+- **Web** on `http://localhost:5173` (`src/web` — Vite + React, proxies `/api/*` to
+  the server).
+
+Open `http://localhost:5173`. First time you'll see a settings dialog asking for a
+provider + key — that gets persisted to `~/.captable/config.json` (mode `0600`).
+
+Once a key is configured:
+
+1. Create a fund in the sidebar.
+2. Create a company under it.
+3. Drag a contract PDF/DOCX/TXT onto the drop zone — the server parses it,
+   stores the text, and runs the LLM extraction.
+4. Edit any wrong fields in the merge view, then play with the exit-value slider
+   on the waterfall.
+
+The SQLite database is created on demand at `~/.captable/captable.db`. Nothing
+about your deals leaves the machine except the LLM extraction call.
+
+### For agents starting the app
+
+`npm run dev` is the canonical entry point. It launches `concurrently` with both
+the server (in watch mode) and the Vite dev server. Both bind to localhost; the
+Vite proxy in `src/web/vite.config.ts` forwards `/api/*` to port 3001.
+
+- Server logs are prefixed `[server]`, web logs are prefixed `[web]`.
+- Health check: `curl http://127.0.0.1:3001/api/health` → `{"ok":true}`.
+- No API key needed to start the server — the key is read on each extraction
+  call, so you can boot and configure later via the settings dialog or
+  `captable config set`.
+- To run just one side: `npm run server:watch` or `npm run web`.
+
+## Quickstart — CLI
+
+```bash
+npm install
+npm run build       # compiles dist/cli/index.js (the bin entry)
+
+# Save provider + key once (writes ~/.captable/config.json, mode 0600)
 npx captable config set --provider anthropic --api-key sk-ant-…
-# or
-npx captable config set --provider openai    --api-key sk-…
-# or (Langdock — OpenAI-compatible gateway, defaults to EU region)
-npx captable config set --provider langdock  --api-key ld-…
+# or --provider openai --api-key sk-…
+# or --provider langdock --api-key ld-…
 
-# Run the full pipeline on the demo contract
+# Full pipeline on the demo contract
 npx captable run demo/helios-robotics.txt
 ```
 
-You can also use env vars instead of `config set`:
+Env vars also work in place of `config set`:
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-…        # provider inferred from which key is set
-# or
-export LANGDOCK_API_KEY=ld-…             # inferred as `langdock`
+export ANTHROPIC_API_KEY=sk-ant-…   # provider inferred from which key is set
 npx captable run demo/helios-robotics.txt
 ```
 
-### Langdock-specific options
+Subcommands: `config`, `ingest`, `captable`, `patch`, `waterfall`, `run`.
+Pass `--json` for machine-readable output. See `docs/cli.md` for details.
 
-Langdock is an OpenAI-compatible gateway that can route to GPT, Claude,
-Gemini, and Mistral models. The default base URL is the EU region
-(`https://api.langdock.com/openai/eu/v1`). Override it for the US region or
-a dedicated deployment:
+### Langdock (optional)
 
-```bash
-# Persist it (config file)
-npx captable config set --provider langdock --api-key ld-… \
-  --base-url https://api.langdock.com/openai/us/v1 \
-  --model gpt-4o
+Langdock is an OpenAI-compatible gateway routing to GPT, Claude, Gemini, Mistral.
+Defaults to the EU region (`https://api.langdock.com/openai/eu/v1`); override
+with `--base-url` or `LANGDOCK_BASE_URL`. See `docs/configuration.md`.
 
-# Or per-command
-npx captable run demo/helios-robotics.txt \
-  --provider langdock --api-key ld-… \
-  --base-url https://your-deployment.example.com/api/public/openai/eu/v1
+## Scripts
 
-# Or via env
-export LANGDOCK_API_KEY=ld-…
-export LANGDOCK_BASE_URL=https://api.langdock.com/openai/us/v1
+| Script               | What it does                                     |
+|----------------------|--------------------------------------------------|
+| `npm run dev`        | Server (watch) + web (Vite) in parallel.         |
+| `npm run server`     | Server only, no watch.                           |
+| `npm run server:watch` | Server only, watches source.                   |
+| `npm run web`        | Vite dev server only.                            |
+| `npm run cli -- …`   | Run the CLI from source (no build needed).       |
+| `npm run build`      | `tsc -p tsconfig.build.json` → `dist/`.          |
+| `npm run typecheck`  | `tsc --noEmit`.                                  |
+| `npm test`           | Run vitest suite once.                           |
+| `npm run test:watch` | Vitest in watch mode.                            |
+
+## Layout
+
+```
+src/
+  cli/         Commander-based CLI (config, ingest, captable, patch, waterfall, run)
+  config/      Config resolution & ~/.captable/config.json (mode 0600)
+  data/        SQLite schema + Store (the data layer used by CLI & server)
+  engine/      Deterministic cap-table + waterfall math (no LLM, fully tested)
+  ingestion/   LLM extraction via Vercel AI SDK + Zod schema
+  server/      Local Express API on 127.0.0.1:3001 (wraps Store + engine)
+  shared/      Types shared between extraction, engine, and UI
+  web/         Vite + React frontend (Tailwind, react-query, react-router)
+tests/         Vitest — engine invariants, ingestion, store, e2e CLI smoke
+demo/          Sample contract + expected pipeline output
+docs/          Per-area docs (architecture, cli, server, web, engine, …)
 ```
 
-See `npx captable --help` for the full subcommand list (`ingest`, `captable`,
-`patch`, `waterfall`, `run`, `config`). `--json` makes every command emit
-machine-readable output for downstream tooling.
+## Docs
 
-Switching providers is `captable config set --provider openai --api-key …` —
-no code changes. Under the hood the extractor talks to the
-[Vercel AI SDK](https://sdk.vercel.ai/) (`generateObject` with a Zod schema)
-so adding more providers later is a small change in `src/ingestion/providers.ts`.
-
-## Kernidee (3 Schritte)
-
-1. **Auslesen** – Quelldokumente (Legals, Excel, PDF) aus Ordner / Upload / Google Drive / Datenraum
-   einlesen und strukturieren.
-2. **Cap Table aufbauen** – Initiale Cap Table erzeugen, Runden + Option Pool ergänzen, automatisch updaten.
-   Jede Zahl ist auf ihre **Quelle** rückverfolgbar (Hover + Drill-down) und hat ein **Confidence Level**.
-3. **Analysieren & Entscheiden** – Investoren ranken, Red Flags erkennen, Waterfall & Valuation rechnen,
-   Return-Kurven zeigen und **Follow-on-Entscheidungen** interaktiv durchspielen.
-
-## Doku-Index
-
-### Current MVP build (read these first)
-
-| Datei | Inhalt |
-|---|---|
-| [docs/MVP.md](docs/MVP.md) | **What we're actually building.** Scope, pipeline, streams, DoD. |
-| [docs/stream-a-ingestion.md](docs/stream-a-ingestion.md) | Stream A spec — LLM extraction + SQLite. |
-| [docs/stream-b-engine.md](docs/stream-b-engine.md) | Stream B spec — Cap Table + Waterfall engine. |
-| [docs/stream-c-ui.md](docs/stream-c-ui.md) | Stream C spec — Electron + React single screen. |
-| [src/shared/types.ts](src/shared/types.ts) | Shared types — the contract between all three streams. |
-
-### v2 background (broader vision, not the current target)
-
-| Datei | Inhalt |
-|---|---|
-| [docs/01-vision-scope.md](docs/01-vision-scope.md) | Vision, Ziele, Nutzer, Scope, Glossar |
-| [docs/02-architecture.md](docs/02-architecture.md) | Tech-Stack (lokale Desktop-App), Datenfluss, Privacy/Security |
-| [docs/03-data-model.md](docs/03-data-model.md) | Entitäten & Datenmodell |
-| [docs/04-ingestion-extraction.md](docs/04-ingestion-extraction.md) | Auslesen aus allen Quellen, LLM-Extraktion, Confidence & Provenance |
-| [docs/05-captable-engine.md](docs/05-captable-engine.md) | Cap-Table-Engine: Runden, Pool, Verwässerung, Updates |
-| [docs/06-waterfall-valuation.md](docs/06-waterfall-valuation.md) | Liquidations-Waterfall, Share Price, Valuation |
-| [docs/07-analysis-insights.md](docs/07-analysis-insights.md) | Red Flags, Investor-Ranking, Patterns, Return-Kurve, Benchmarking |
-| [docs/08-scenarios-followon.md](docs/08-scenarios-followon.md) | Szenarien & Follow-on-Entscheidungen |
-| [docs/09-ui-ux.md](docs/09-ui-ux.md) | UI/UX, interaktiver Waterfall, Drill-down |
-| [docs/10-roadmap-todos.md](docs/10-roadmap-todos.md) | Roadmap, Phasen, TODO-Liste |
-| [docs/11-open-questions.md](docs/11-open-questions.md) | Annahmen & offene Fragen |
-| [PROMPT.md](PROMPT.md) | Konsolidierter Build-Prompt für den Start der Umsetzung |
-
-## Nächster Schritt
-
-Read [docs/MVP.md](docs/MVP.md), agree on `src/shared/types.ts` and the
-golden fixture, then each colleague picks up one stream brief and starts
-building.
+| File                          | What's in it                                          |
+|-------------------------------|-------------------------------------------------------|
+| [docs/architecture.md](docs/architecture.md) | How the pieces fit together; data flow.   |
+| [docs/configuration.md](docs/configuration.md) | Config file, env vars, provider keys.    |
+| [docs/ingestion.md](docs/ingestion.md) | LLM extraction & supported providers.           |
+| [docs/engine.md](docs/engine.md) | Cap-table build + waterfall algorithm + invariants. |
+| [docs/data.md](docs/data.md)   | SQLite schema and the `Store` interface.             |
+| [docs/server.md](docs/server.md) | HTTP API surface (used by the web app).            |
+| [docs/web.md](docs/web.md)     | React app structure (pages, components, queries).    |
+| [docs/cli.md](docs/cli.md)     | CLI subcommands and flags.                           |
+| [demo/helios-robotics-walkthrough.md](demo/helios-robotics-walkthrough.md) | Worked example tied to the golden test fixture. |

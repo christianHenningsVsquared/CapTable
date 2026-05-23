@@ -1,7 +1,7 @@
 // End-to-end smoke test for the headless CLI handlers.
 //
-// This exercises the full Stream A + B pipeline without spawning the CLI
-// process: build a Store with a fake extractor that returns the golden
+// Exercises the full ingest → cap table → waterfall pipeline without spawning
+// the CLI process: build a Store with a fake extractor that returns the golden
 // Extraction, then call the same handlers the CLI calls.
 
 import { describe, expect, test } from "vitest";

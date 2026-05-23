@@ -1,11 +1,11 @@
 // The shared golden fixture — a made-up 3-round company.
 //
-// Stream A owns `contractText` + the expected `extraction` (what extractContract
-// must produce). Stream B should extend this file with the expected `capTable`
-// and `waterfall` results computed by hand from these numbers, and Stream C
-// renders them. Keep the numbers clean so the hand-computed waterfall is exact.
+// `contractText` is the LLM input; `extraction` is what extractContract must
+// produce from it. Extend this file with expected `capTable` and `waterfall`
+// results computed by hand from these numbers so the engine + UI can match
+// them. Keep the numbers clean so the hand-computed waterfall is exact.
 //
-// Designed so shares come out round (Stream B):
+// Designed so shares come out round:
 //   Founders (common):            4,000,000 shares  (= Seed preMoney 4,000,000 / 1.00)
 //   Seed preferred @ $1.00:       1,000,000 shares  (= 1,000,000 / 1.00)
 //   Series A preferred @ $2.00:   2,000,000 shares  (= 4,000,000 / 2.00)

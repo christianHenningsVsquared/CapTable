@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Headless CLI for Streams A + B. UI (Stream C) optional.
+// Headless CLI: contract text → extraction → cap table → waterfall.
 //
 // Subcommands:
 //   captable config set --provider <p> --api-key <k> [--model <m>]

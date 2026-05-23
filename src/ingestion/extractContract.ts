@@ -26,14 +26,14 @@ export interface ExtractContractOptions {
 /**
  * Single LLM call that extracts cap-table data from a contract text using the
  * Vercel AI SDK's `generateObject`. The provider is chosen via the resolved
- * `RuntimeConfig` (Anthropic or OpenAI today).
+ * `RuntimeConfig` (Anthropic, OpenAI, or Langdock).
  *
  * Contract for the LLM (enforced by the system prompt + the structured-output schema):
  *   - Extract ONLY what is literally written. No inference, no math, no derived values.
- *   - Anything not present in the text becomes null. The engine (Stream B) computes
- *     shares, ownership %, and the waterfall from this raw data.
+ *   - Anything not present in the text becomes null. The engine computes shares,
+ *     ownership %, and the waterfall from this raw data.
  *
- * Stream A owns this file. See docs/stream-a-ingestion.md.
+ * See docs/ingestion.md.
  */
 export async function extractContract(
   text: string,

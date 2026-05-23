@@ -1,4 +1,4 @@
-// The contract between the LLM call and the rest of Stream A.
+// The contract between the LLM call and the rest of the ingestion code.
 //
 // Two representations of the same shape live here:
 //   1. `ExtractionInputSchema` — a Zod schema used as the structured-output

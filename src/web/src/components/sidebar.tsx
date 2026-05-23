@@ -41,7 +41,7 @@ export function Sidebar() {
           <div className="leading-tight">
             <p className="text-sm font-semibold tracking-tight">CapTable</p>
             <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-              Stream A·B·C
+              Local
             </p>
           </div>
         </Link>

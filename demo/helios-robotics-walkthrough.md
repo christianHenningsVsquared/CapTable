@@ -2,7 +2,7 @@
 
 Ein vollständig durchgerechneter End-to-End-Testfall. Eingabe ist [helios-robotics.txt](helios-robotics.txt);
 unten stehen die **erwarteten Ergebnisse** jeder Pipeline-Stufe. Damit lässt sich die Logik Schritt für Schritt
-verifizieren — und sobald die Web-UI (Stream C) steht, ist das die Demo, die man durchklickt.
+verifizieren.
 
 > Beträge sind als reine Zahlen behandelt (Währung egal). Hier in `$`, identisch zur Test-Fixture
 > [tests/fixtures/golden.ts](../tests/fixtures/golden.ts), damit „getestet = demonstriert" gilt.
@@ -10,12 +10,21 @@ verifizieren — und sobald die Web-UI (Stream C) steht, ist das die Demo, die m
 ## So nutzt man den Testfall
 
 1. **Ingestion**: `helios-robotics.txt` einlesen → `extractContract()` erzeugt die **Extraktion** (Schritt 1).
-2. **Engine** (Stream B): aus der Extraktion **Cap Table** bauen (Schritt 2) und **Waterfall** rechnen (Schritt 3).
-3. **UI** (Stream C): Cap Table anzeigen, Exit-Wert-Regler bewegen → Waterfall aktualisiert sich live.
+2. **Engine**: aus der Extraktion **Cap Table** bauen (Schritt 2) und **Waterfall** rechnen (Schritt 3).
+3. **UI**: Cap Table anzeigen, Exit-Wert-Regler bewegen → Waterfall aktualisiert sich live.
    Die drei Szenarien unten (10 / 51 / 100 Mio.) sind die Referenzpunkte zum Gegenchecken.
 
-Schon **heute nutzbar** (Stream A live): mit gesetztem `ANTHROPIC_API_KEY`
-`npx vitest run tests/ingestion/live.test.ts` → echte Claude-Extraktion auf genau diesem Dokument, geprüft gegen Schritt 1.
+Vollständiger Durchlauf headless mit der CLI:
+
+```bash
+npx captable run demo/helios-robotics.txt
+```
+
+Live-Extraction-Test gegen genau dieses Dokument (mit gesetztem `ANTHROPIC_API_KEY`):
+
+```bash
+npx vitest run tests/ingestion/live.test.ts
+```
 
 ---
 
@@ -128,5 +137,5 @@ Oberhalb von ~$72M ist der Series-B-Cap ($16M) schlechter als Wandeln → auch S
 - **Participating preferred mit Cap** (Series B exakt 2,0x bei mittleren Exits; wandelt bei hohen Exits).
 - Waterfall-Invariante: Summe der Auszahlungen = Exit-Erlös (in jedem Szenario geprüft).
 
-> Diese Zahlen sind die Zielwerte für die Engine (Stream B). Stream B sollte sie als Golden-Case in `tests/engine/`
-> hinterlegen; Stream C rendert Cap Table + Waterfall und den Exit-Regler.
+> Diese Zahlen sind die Zielwerte für die Engine. Als Golden-Case liegen sie in `tests/fixtures/golden.ts`
+> und werden von `tests/engine/runWaterfall.test.ts` verifiziert.

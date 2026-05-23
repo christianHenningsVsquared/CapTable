@@ -1,5 +1,5 @@
-// Provider-agnostic LLM factory. The rest of Stream A talks to an AI SDK
-// `LanguageModel`; this file is the only place that decides which provider
+// Provider-agnostic LLM factory. The rest of the ingestion code talks to an AI
+// SDK `LanguageModel`; this file is the only place that decides which provider
 // (Anthropic, OpenAI, or Langdock) backs it.
 //
 // Langdock is an OpenAI-compatible gateway that fronts multiple model
