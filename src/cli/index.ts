@@ -24,6 +24,7 @@ import {
   defaultDbPath,
   loadConfig,
   maskKey,
+  PROVIDERS,
   saveConfig,
   type PartialConfig,
   type Provider,
@@ -51,6 +52,7 @@ interface ProviderFlags {
   provider?: Provider;
   apiKey?: string;
   model?: string;
+  baseUrl?: string;
 }
 
 function getGlobals(cmd: Command): GlobalFlags {
@@ -65,19 +67,18 @@ function resolveOverrides(flags: ProviderFlags): PartialConfig {
   if (flags.provider) out.provider = flags.provider;
   if (flags.apiKey) out.apiKey = flags.apiKey;
   if (flags.model) out.model = flags.model;
+  if (flags.baseUrl) out.baseURL = flags.baseUrl;
   return out;
 }
 
 function addProviderOptions(cmd: Command): Command {
   return cmd
     .addOption(
-      new Option("--provider <provider>", "Override provider").choices([
-        "anthropic",
-        "openai",
-      ]),
+      new Option("--provider <provider>", "Override provider").choices([...PROVIDERS]),
     )
     .option("--api-key <key>", "Override API key")
-    .option("--model <id>", "Override model id");
+    .option("--model <id>", "Override model id")
+    .option("--base-url <url>", "Override base URL (Langdock region / dedicated deployment)");
 }
 
 function buildStore(globals: GlobalFlags, providerOverrides: ProviderFlags): Store {
@@ -136,29 +137,44 @@ config
   .command("set")
   .description("Persist provider + API key to ~/.captable/config.json")
   .addOption(
-    new Option("--provider <provider>", "Provider (anthropic|openai)")
-      .choices(["anthropic", "openai"])
+    new Option("--provider <provider>", "Provider (anthropic|openai|langdock)")
+      .choices([...PROVIDERS])
       .makeOptionMandatory(true),
   )
   .requiredOption("--api-key <key>", "API key")
   .option("--model <id>", "Model id (optional; uses provider default if omitted)")
-  .action((opts: { provider: Provider; apiKey: string; model?: string }, cmd: Command) => {
-    const flags = getGlobals(cmd);
-    saveConfig({ provider: opts.provider, apiKey: opts.apiKey, model: opts.model });
-    if (flags.json) {
-      printJson({
-        ok: true,
-        path: defaultConfigPath(),
+  .option(
+    "--base-url <url>",
+    "Base URL override (Langdock: region/dedicated deployment, e.g. https://api.langdock.com/openai/us/v1)",
+  )
+  .action(
+    (
+      opts: { provider: Provider; apiKey: string; model?: string; baseUrl?: string },
+      cmd: Command,
+    ) => {
+      const flags = getGlobals(cmd);
+      saveConfig({
         provider: opts.provider,
-        apiKey: maskKey(opts.apiKey),
+        apiKey: opts.apiKey,
         model: opts.model,
+        baseURL: opts.baseUrl,
       });
-    } else {
-      process.stdout.write(
-        `Saved ${defaultConfigPath()}\n  provider: ${opts.provider}\n  api key:  ${maskKey(opts.apiKey)}\n${opts.model ? `  model:    ${opts.model}\n` : ""}`,
-      );
-    }
-  });
+      if (flags.json) {
+        printJson({
+          ok: true,
+          path: defaultConfigPath(),
+          provider: opts.provider,
+          apiKey: maskKey(opts.apiKey),
+          model: opts.model,
+          baseURL: opts.baseUrl,
+        });
+      } else {
+        process.stdout.write(
+          `Saved ${defaultConfigPath()}\n  provider: ${opts.provider}\n  api key:  ${maskKey(opts.apiKey)}\n${opts.model ? `  model:    ${opts.model}\n` : ""}${opts.baseUrl ? `  base url: ${opts.baseUrl}\n` : ""}`,
+        );
+      }
+    },
+  );
 
 config
   .command("show")
@@ -167,10 +183,15 @@ config
     const flags = getGlobals(cmd);
     const c = safeLoadConfig({});
     if (flags.json) {
-      printJson({ provider: c.provider, apiKey: maskKey(c.apiKey), model: c.model });
+      printJson({
+        provider: c.provider,
+        apiKey: maskKey(c.apiKey),
+        model: c.model,
+        baseURL: c.baseURL,
+      });
     } else {
       process.stdout.write(
-        `provider: ${c.provider}\napi key:  ${maskKey(c.apiKey)}\nmodel:    ${c.model ?? "(provider default)"}\n`,
+        `provider: ${c.provider}\napi key:  ${maskKey(c.apiKey)}\nmodel:    ${c.model ?? "(provider default)"}\nbase url: ${c.baseURL ?? "(provider default)"}\n`,
       );
     }
   });
