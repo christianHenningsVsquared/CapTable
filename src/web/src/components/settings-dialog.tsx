@@ -103,7 +103,7 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
 
         <div className="space-y-2">
           <Label htmlFor="provider">Provider</Label>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {PROVIDERS.map((p) => (
               <Button
                 key={p}
