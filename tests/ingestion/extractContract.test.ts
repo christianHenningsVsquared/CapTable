@@ -3,31 +3,17 @@ import { extractContract } from "../../src/ingestion/extractContract.js";
 import { parseExtraction } from "../../src/ingestion/extractionSchema.js";
 import { golden } from "../fixtures/golden.js";
 
-// Build a fake Anthropic client whose single message returns a tool_use block
-// carrying `toolInput`. Avoids any network call.
-function fakeClient(toolInput: unknown, stopReason = "tool_use") {
-  return {
-    messages: {
-      create: async () => ({
-        stop_reason: stopReason,
-        content: [
-          { type: "tool_use", id: "toolu_test", name: "record_extraction", input: toolInput },
-        ],
-      }),
-    },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
-}
-
 describe("extractContract", () => {
-  it("returns the Extraction from the model's tool_use block", async () => {
+  it("returns the Extraction after running raw input through the normalizer", async () => {
+    // `__testRawResult` bypasses the AI SDK call and feeds the raw object
+    // through the same defensive normalizer the real call uses.
     const result = await extractContract(golden.contractText, {
-      client: fakeClient(golden.extraction),
+      __testRawResult: golden.extraction,
     });
     expect(result).toEqual(golden.extraction);
   });
 
-  it("normalizes messy model output (currency strings, separators, bad enum)", async () => {
+  it("normalizes messy raw output (currency strings, separators, bad enum)", async () => {
     const messy = {
       company: { name: "  Helios Robotics  " },
       rounds: [
@@ -46,7 +32,7 @@ describe("extractContract", () => {
       investors: [{ name: "Seedcamp Ventures", round: "Seed", amount: "700000" }],
     };
 
-    const r = await extractContract("ignored", { client: fakeClient(messy) });
+    const r = await extractContract("ignored", { __testRawResult: messy });
     expect(r.company.name).toBe("Helios Robotics");
     expect(r.rounds[0]?.preMoney).toBe(4_000_000);
     expect(r.rounds[0]?.investment).toBe(1_000_000);
@@ -54,16 +40,6 @@ describe("extractContract", () => {
     expect(r.rounds[0]?.participation).toBeNull();
     expect(r.rounds[0]?.seniority).toBe(1);
     expect(r.investors[0]?.amount).toBe(700_000);
-  });
-
-  it("throws if the model returns no tool_use block", async () => {
-    const noTool = {
-      messages: {
-        create: async () => ({ stop_reason: "end_turn", content: [{ type: "text", text: "nope" }] }),
-      },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any;
-    await expect(extractContract("x", { client: noTool })).rejects.toThrow(/tool_use/);
   });
 });
 
