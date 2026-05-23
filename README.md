@@ -9,6 +9,40 @@ unterstützt Exit-, Valuation- und Follow-on-Entscheidungen über das gesamte Fo
 > The phase docs below (`01-…` through `11-…`) describe the broader v2
 > vision and are not the current build target.
 
+## Quickstart (headless — Streams A + B only)
+
+The UI (Stream C) is still pending, but the CLI is already viable. Provide
+either an Anthropic *or* an OpenAI key.
+
+```bash
+npm install
+npm run build          # compiles dist/cli/index.js (the bin entry)
+
+# Save your provider + key once (writes ~/.captable/config.json, mode 0600)
+npx captable config set --provider anthropic --api-key sk-ant-…
+# or
+npx captable config set --provider openai    --api-key sk-…
+
+# Run the full pipeline on the demo contract
+npx captable run demo/helios-robotics.txt
+```
+
+You can also use env vars instead of `config set`:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-…        # provider inferred from which key is set
+npx captable run demo/helios-robotics.txt
+```
+
+See `npx captable --help` for the full subcommand list (`ingest`, `captable`,
+`patch`, `waterfall`, `run`, `config`). `--json` makes every command emit
+machine-readable output for downstream tooling.
+
+Switching providers is `captable config set --provider openai --api-key …` —
+no code changes. Under the hood the extractor talks to the
+[Vercel AI SDK](https://sdk.vercel.ai/) (`generateObject` with a Zod schema)
+so adding more providers later is a small change in `src/ingestion/providers.ts`.
+
 ## Kernidee (3 Schritte)
 
 1. **Auslesen** – Quelldokumente (Legals, Excel, PDF) aus Ordner / Upload / Google Drive / Datenraum
