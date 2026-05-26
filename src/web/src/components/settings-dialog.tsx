@@ -154,19 +154,22 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
         )}
       </div>
 
-      <DialogFooter>
-        {status?.hasKey && (
+      {status?.hasKey && (
+        <div className="mt-6 flex">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() => {
               if (confirm("Remove the stored API key?")) clear.mutate();
             }}
-            className="mr-auto text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
+            className="border-rose-500/40 text-rose-300 hover:border-rose-400/60 hover:bg-rose-500/10 hover:text-rose-200"
           >
             <Trash2 className="h-3.5 w-3.5" /> Remove key
           </Button>
-        )}
+        </div>
+      )}
+
+      <DialogFooter className={status?.hasKey ? "mt-3" : undefined}>
         <Button variant="outline" onClick={onClose}>
           Close
         </Button>
