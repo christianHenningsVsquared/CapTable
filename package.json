@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "VC cap-table tool — MVP headless CLI (Streams A + B)",
+  "license": "MIT",
   "bin": {
     "captable": "dist/cli/index.js"
   },
