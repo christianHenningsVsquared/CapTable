@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   Bar,
   BarChart,
@@ -62,15 +62,27 @@ export function WaterfallSection({ companyId, captable }: Props) {
 
   const max = useMemo(() => Math.max(totalInvested * 10, 50_000_000), [totalInvested]);
   const [exitValue, setExitValue] = useState(0);
+  // Debounced copy of exitValue used for the network query. Slider input updates
+  // exitValue every pixel; we only refire the waterfall computation once the
+  // user pauses, which prevents the chart from thrashing during a drag.
+  const [debouncedExit, setDebouncedExit] = useState(0);
 
   useEffect(() => {
     setExitValue(Math.max(totalInvested * 2, 0));
   }, [totalInvested]);
 
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedExit(exitValue), 120);
+    return () => clearTimeout(t);
+  }, [exitValue]);
+
   const { data, isFetching } = useQuery({
-    queryKey: ["waterfall", companyId, exitValue],
-    queryFn: () => api.runWaterfall(companyId, exitValue),
-    enabled: captable != null && !("error" in (captable ?? {})) && exitValue >= 0,
+    queryKey: ["waterfall", companyId, debouncedExit],
+    queryFn: () => api.runWaterfall(companyId, debouncedExit),
+    enabled: captable != null && !("error" in (captable ?? {})) && debouncedExit >= 0,
+    // Keep the previous waterfall visible while the next one is in flight so
+    // the chart and table don't unmount on every slider step.
+    placeholderData: keepPreviousData,
   });
 
   if (!captable || "error" in captable) {
@@ -262,7 +274,7 @@ export function WaterfallSection({ companyId, captable }: Props) {
                   </span>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {exitValue > 0 ? formatPercent(r.payout / exitValue, 2) : "—"}
+                  {debouncedExit > 0 ? formatPercent(r.payout / debouncedExit, 2) : "—"}
                 </TableCell>
               </TableRow>
             ))}
